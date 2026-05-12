@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>困兽犹斗 Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="stage">
+      <div class="chapter-map" aria-label="章节轨迹">
+        <span class="map-dot is-open"></span>
+        <span class="map-line"></span>
+        <span class="map-node is-current" data-node="title">序章</span>
+        <span class="map-node" data-node="room">房间</span>
+        <span class="map-node" data-node="explore">探索</span>
+        <span class="map-line dim"></span>
+        <span class="map-dot"></span>
+      </div>
+
+      <article class="story-panel">
+        <div class="story-meta">
+          <span id="sceneLabel">序章</span>
+          <span id="clockLabel">12:00</span>
+        </div>
+        <h1 id="title">困兽犹斗</h1>
+        <div id="story" class="story"></div>
+        <div id="exploredHint" class="explored-hint"></div>
+        <div id="choices" class="choices"></div>
+      </article>
+    </section>
+
+    <aside class="hud" aria-label="玩家状态">
+      <div class="portrait">
+        <div class="portrait-fog"></div>
+        <div class="portrait-name" id="playerName">未命名</div>
+      </div>
+
+      <section class="meter-block">
+        <div class="meter-head">
+          <span>房间耐心</span>
+          <strong id="roomPatienceText">60/100</strong>
+        </div>
+        <div class="meter"><span id="roomPatienceBar"></span></div>
+      </section>
+
+      <section class="meter-block">
+        <div class="meter-head">
+          <span>集体意识</span>
+          <strong id="collectiveText">0</strong>
+        </div>
+        <div class="meter collective"><span id="collectiveBar"></span></div>
+      </section>
+
+      <nav class="tabs" aria-label="侧栏">
+        <button class="tab is-active" type="button" data-tab="items">道具</button>
+        <button class="tab" type="button" data-tab="cards">卡牌</button>
+        <button class="tab" type="button" data-tab="achievements">成就</button>
+      </nav>
+
+      <section id="items" class="tab-panel is-active"></section>
+      <section id="cards" class="tab-panel"></section>
+      <section id="achievements" class="tab-panel"></section>
+
+      <section class="trait-panel">
+        <h2>人格倾向</h2>
+        <div id="traits" class="traits"></div>
+      </section>
+    </aside>
+  </main>
+
+  <div id="roomTransition" class="room-transition" aria-hidden="true">
+    <div class="transition-noise"></div>
+    <div class="transition-copy">
+      <span id="transitionName">主控</span>
+      <strong>它吞噬了你。</strong>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
