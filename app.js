@@ -43,15 +43,12 @@ const state = {
   cards: [],
   achievements: [],
   explored: [],
-  flags: {
-    bagOpen: false,
-    clothesOn: false,
-    curtainOpenTried: false,
-    mirrorSat: false,
-    bedRested: false,
-    ignoredCorpse: false,
-    wrotePoem: false
-  }
+  heldTrash: "",
+  organChoice: "",
+  expressionChoice: "",
+  bodyChoice: "",
+  mouthChoice: "",
+  flags: defaultFlags()
 };
 
 const nodes = {
@@ -83,10 +80,26 @@ const nodes = {
   lampA: {
     scene: "第一章",
     clock: "12:01",
-    title: "左侧 / 右侧",
+    title: "转动脖颈",
     text: [
-      "你转动脖颈。",
-      "床与地板之间的缝隙，需要更近的距离才能窥见阴影之下的居民。",
+      "你转动脖颈。"
+    ],
+    choices: [["左侧", "lampALeft"], ["右侧", "lampARight"]]
+  },
+  lampALeft: {
+    scene: "第一章",
+    clock: "12:01",
+    title: "左侧",
+    text: [
+      "床与地板之间的缝隙，需要更近的距离才能窥见阴影之下的居民。"
+    ],
+    choices: [["右侧", "lampARight"]]
+  },
+  lampARight: {
+    scene: "第一章",
+    clock: "12:01",
+    title: "右侧",
+    text: [
       "这个世界上，竟然还有比你的颈椎更僵硬的东西——是的，它就躺在你的旁边，一具尸体。"
     ],
     choices: [
@@ -247,7 +260,7 @@ const nodes = {
   explore: {
     scene: "房间探索",
     clock: "12:07",
-    title: "一个阴险的房间",
+    title: "房间",
     text: [
       "昏暗老旧的房间，只有中心处被一盏灯照亮。"
     ],
@@ -369,6 +382,7 @@ const nodes = {
     clock: "12:14",
     title: "密码锁",
     text: () => ["（请输入密码）"],
+    password: true,
     choices: [["打开书柜", "bookcaseOpen"], ["离开", "explore", { explored: "bookcase" }]]
   },
   bookcaseForce: {
@@ -501,21 +515,513 @@ const nodes = {
       "[结束探索]"
     ],
     choices: [
-      ["一个阴险的房间。", "endingDemo", { collective: 1, explored: "door" }],
-      ["一个美萌的房间。", "endingDemo", { patience: 3, explored: "door" }]
+      ["一个阴险的房间。", "knock", { collective: 1, explored: "door" }],
+      ["一个美萌的房间。", "knock", { patience: 3, explored: "door" }]
     ]
   },
-  endingDemo: {
-    scene: "试玩结束",
+  knock: {
+    scene: "Part2",
     clock: "12:21",
-    title: "站台",
+    title: "清洁工",
     text: [
-      "10170800：凌晨十二点前来站台。"
+      "【门】：叩叩。",
+      "一下，两下。",
+      "【门】：叩叩叩。",
+      "一下，两下，三下。",
+      "卧室门的敲门声。"
     ],
     effect: () => {
       if (!state.flags.clothesOn) unlockAchievement("named");
     },
-    choices: [["回到房间探索", "explore"], ["重新开始", "title", { reset: true }]]
+    choices: [["它来了", "cleanerStart"], ["它来了", "cleanerStart"], ["它来了", "cleanerStart"]]
+  },
+  cleanerStart: {
+    scene: "Part2",
+    clock: "12:21",
+    title: "清洁工",
+    text: [
+      "【【建议存档】】"
+    ],
+    choices: () => cleanerStartChoices()
+  },
+  cleanerCard: {
+    scene: "Part2",
+    clock: "12:21",
+    title: "查看卡牌",
+    text: [
+      "【一号卡】：它很有礼貌，你暂时找不到审判它的理由。",
+      "【一号卡】：做一名道德卫士，这是你存在的唯一理由。"
+    ],
+    choices: [["返回", "cleanerStart"]]
+  },
+  peephole: {
+    scene: "Part2",
+    clock: "12:22",
+    title: "猫眼",
+    text: [
+      "咚咚咚——你贴着门，感觉到身体也随之颤动。",
+      "敲门声离你更近了。"
+    ],
+    choices: [["“你是谁？”", "cleanerWho", { hideDirectOpen: true }], ["查看卡牌", "cleanerCard"]]
+  },
+  cleanerWho: {
+    scene: "Part2",
+    clock: "12:22",
+    title: "门外",
+    text: () => state.flags.bagOpen
+      ? [
+        "【？？？】：“307……我来收取今日的垃圾。”",
+        "从垃圾袋猫中抽出垃圾袋。"
+      ]
+      : [
+        "【？？？】：“307……我来收取今日的垃圾。”",
+        "请先寻找装垃圾的袋子。"
+      ],
+    choices: () => state.flags.bagOpen ? trashChoices() : [["返回房间", "explore"]]
+  },
+  corpseTrashConfirm: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "尸体",
+    text: [
+      "确定要直接让一个陌生人看到房间里的尸体吗？"
+    ],
+    choices: [["是的", "corpseTrashYes", { heldTrash: "corpse" }], ["算了吧", "cleanerWho"]]
+  },
+  corpseTrashYes: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "尸体",
+    text: [
+      "如果对非垃圾的定义是“有用的东西”，那么它对你来说当然是垃圾。",
+      "但你根本没法移动这个东西。或许这正好是一个机会，让门外的人来帮你清理房间里的异物。"
+    ],
+    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+  },
+  bearTrash: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "白毛熊",
+    text: [
+      "如果你愿意这么做的话，它当然和任何物品没有区别。",
+      "即使它的眼神再无辜、再幽怨，你也绝不会被蛊惑。",
+      "但它的体型实在太大了，比你还大，它的头露在了外面。"
+    ],
+    choices: [["强行塞进去", "bearPack", { heldTrash: "bear" }], ["不管了", "bearNoPack", { heldTrash: "bearLoose" }]]
+  },
+  bearPack: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "白毛熊",
+    text: [
+      "柔软的东西可以被无限地压扁。",
+      "你将身体的全部重量压在它的毛绒头上。",
+      "一点。一点。一点。",
+      "熊塌缩下去，你仿佛见到它的五官全部皱起来，还有躯干，四肢，它们都被压缩成一块长毛的正方体。",
+      "它是被力驯服的死物，它从未开口。",
+      "打包好了。"
+    ],
+    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+  },
+  bearNoPack: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "白毛熊",
+    text: [
+      "没有合适的垃圾袋，这是清洁工需要处理的问题。"
+    ],
+    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+  },
+  poemTrash: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "主控之诗",
+    text: [
+      "一张废纸而已，不用装进垃圾袋。",
+      "你可以直接念给对方听，将这份精神排泄物灌到他的耳朵里。"
+    ],
+    choices: [["查看猫眼", "peephole", { heldTrash: "poem" }], ["开门", "openDoor", { heldTrash: "poem" }]]
+  },
+  catTrash: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "垃圾袋猫",
+    text: [
+      "如果你愿意这么做的话，它当然和任何物品没有区别。",
+      "垃圾袋猫从不知名的空间再次跳出来，轻盈地钻进黑色塑料袋——几分钟前，这只袋子还属于它的内部，你只是将它们同时翻了个面。"
+    ],
+    choices: [["查看猫眼", "peephole", { heldTrash: "cat" }], ["开门", "openDoor", { heldTrash: "cat" }]]
+  },
+  selfTrash: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "自己",
+    text: [
+      "你站到袋子前。",
+      "垃圾袋撑得很大，比看上去还大。",
+      "它恰好容纳得下你的身体。",
+      "袋子敞着口，空气灌进去，鼓起来，它在邀请你。"
+    ],
+    choices: [["走进去", "selfTrashInside"], ["不进去", "selfTrashNo", { heldTrash: "self" }]]
+  },
+  selfTrashNo: {
+    scene: "Part2",
+    clock: "12:23",
+    title: "自己",
+    text: [
+      "如果你进去，谁来把垃圾袋递给清洁工呢？你完全可以亲自打开门，让清洁工把你打包起来。"
+    ],
+    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+  },
+  selfTrashInside: {
+    scene: "结局",
+    clock: "12:24",
+    title: "垃圾",
+    text: [
+      "你把自己关进了垃圾袋里。",
+      "然后你才发现，你无法把自己这袋垃圾交出去。",
+      "咔嚓——",
+      "（门开了）"
+    ],
+    choices: [["继续", "garbageEnding"]]
+  },
+  directOpen: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "直接开门",
+    text: [
+      "【？？？】：“307……我来收取今日的垃圾。”",
+      "门外的人带着口罩，后面站着一台黄色清洁车。"
+    ],
+    choices: [["我没有垃圾啊", "directOpenNoTrash"], ["我去拿一下垃圾", "directOpenNoTrash"]]
+  },
+  directOpenNoTrash: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "垃圾",
+    text: [
+      "【？？？】：……",
+      "他看着你，你感觉到他下一秒仿佛要哭出来。",
+      "残忍的、慈悲的眼泪。",
+      "你意识到了一件事。"
+    ],
+    choices: [["继续", "garbageEnding"]]
+  },
+  garbageEnding: {
+    scene: "结局",
+    clock: "12:25",
+    title: "垃圾",
+    text: [
+      "你被看见了。",
+      "它睁开了眼睛",
+      "不，不止是它。",
+      "你正在被所有人注视",
+      "【？？？】：307住户，10月17日提交垃圾为：<玩家>***。***",
+      "黑暗再度爬上你的实体。",
+      "你被提起。",
+      "一袋被摇匀的湿垃圾。",
+      "视觉最先被修改。世界是灰绿色的，世界被压扁了。",
+      "然后，你听到一声啼哭。尖锐的，从喉咙溅出。",
+      "你在哭，你为自己而哭，只为自己而哭。",
+      "……",
+      "……",
+      "很快，你忘记了该如何称呼这个表情。",
+      "你的过去，你的期盼，你的恐惧，你曾作为■■乃至拥有一个名字的全部历史，都已经被消化。",
+      "偶尔，会有其他垃圾被扔在你身上。",
+      "你们彼此挤压，交换腐臭，再无分别。",
+      "达成结局：垃圾"
+    ],
+    effect: () => {
+      if (!state.flags.garbagePatienceApplied) {
+        state.flags.garbagePatienceApplied = true;
+        changePatience(-10);
+      }
+    },
+    choices: [["读档", "loadFromChoice"], ["重新开始", "title", { reset: true }]]
+  },
+  openDoor: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "开门",
+    text: [
+      "你要调用什么器官观察面前的人或物？"
+    ],
+    choices: [
+      ["心脏", "organHeart", { traits: [2, 3, 4], organChoice: "heart" }],
+      ["大脑", "organBrain", { traits: [5, 6, 7], organChoice: "brain" }],
+      ["腹部", "organBelly", { traits: [8, 9, 1], organChoice: "belly" }]
+    ]
+  },
+  organHeart: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "心脏",
+    text: [
+      "心脏蜷缩起来。因为恐惧吗？还是悲伤？",
+      "你只知道看见它，就像看见一面从高处开始坠落的镜子，你的心脏为那必然到来的粉碎预支了钝痛。"
+    ],
+    choices: [["继续", "expressionSelect"]]
+  },
+  organBrain: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "大脑",
+    text: [
+      "口罩外露出了青灰色皮肤和一双眼睛。有些熟悉，你见过他吗？",
+      "但是显然，现在不是叙旧的好时机。这间房子的主人遇害了，你作为潜在的嫌疑人，小心惹上不必要的麻烦。"
+    ],
+    choices: [["继续", "expressionSelect"]]
+  },
+  organBelly: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "腹部",
+    text: [
+      "腹腔骤然绷紧，就像在家里发现了一只蟑螂，你本能地想要尖叫和后退。",
+      "快，有没有趁手的武器，最好是一双拖鞋，你要狠狠地拍碎那令人生厌的肢体！"
+    ],
+    choices: [["继续", "expressionSelect", { item: "slipper" }]]
+  },
+  expressionSelect: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "表情",
+    text: [
+      "你决定怎样交出这份垃圾？"
+    ],
+    choices: [
+      ["微笑", "expressionSmile", { expressionChoice: "smile" }],
+      ["低落", "expressionLow", { expressionChoice: "low" }],
+      ["愤怒", "expressionAngry", { expressionChoice: "angry" }],
+      ["平静", "expressionCalm", { expressionChoice: "calm" }]
+    ]
+  },
+  expressionSmile: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "微笑",
+    text: ["提起嘴角通常是一种表达善意的方式。美中不足的是眼睛，它缺席了这场表演。"],
+    choices: [["继续", "bodySelect"]]
+  },
+  expressionLow: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "低落",
+    text: ["眉梢先垂落，接着是嘴角。瓷器般的脆弱笼罩了你的轮廓。"],
+    choices: [["继续", "bodySelect"]]
+  },
+  expressionAngry: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "愤怒",
+    text: ["血在太阳穴里敲鼓，每敲一下，眼白就爬出更多的血丝。一种名为愤怒的情绪正在接管你的大脑……"],
+    choices: [["继续", "bodySelect"]]
+  },
+  expressionCalm: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "平静",
+    text: ["像清空一只口袋一样倒掉了情绪。至少在表面，什么也不剩了。"],
+    choices: [["继续", "bodySelect"]]
+  },
+  bodySelect: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "身体",
+    text: [
+      "你打算和他更亲密地接触吗？"
+    ],
+    choices: [
+      ["攻击，找一切可能的机会。", "mouthSelect", { bodyChoice: "attack" }],
+      ["摘掉口罩，他究竟长什么样？", "mouthSelect", { bodyChoice: "mask" }],
+      ["不打算，多余的动作我不干。", "mouthSelect", { bodyChoice: "none" }]
+    ]
+  },
+  mouthSelect: {
+    scene: "Part2",
+    clock: "12:24",
+    title: "嘴巴",
+    text: [
+      "你愿意触发对话吗？"
+    ],
+    choices: () => mouthChoices()
+  },
+  submitTrash: {
+    scene: "Part2",
+    clock: "12:25",
+    title: "提交垃圾",
+    text: () => submitTrashText(),
+    choices: () => submitTrashChoices()
+  },
+  knifeQuestion: {
+    scene: "Part2",
+    clock: "12:25",
+    title: "真实菜刀",
+    text: [
+      "【清洁工】：它是什么垃圾？"
+    ],
+    choices: [["蓝色", "knifeAfterQuestion"], ["红色", "knifeAfterQuestion"], ["绿色", "knifeAfterQuestion"], ["黑色", "knifeAfterQuestion"]]
+  },
+  knifeAfterQuestion: {
+    scene: "Part2",
+    clock: "12:25",
+    title: "真实菜刀",
+    text: () => knifeAfterQuestionText(),
+    choices: () => knifeAfterQuestionChoices()
+  },
+  knifeAttack: {
+    scene: "结局",
+    clock: "12:26",
+    title: "不合脚的鞋",
+    text: [
+      "【清洁工】：请不要这样，我不想失去这份工作。",
+      "【一号卡】：太无礼了，你为什么要阻碍一名清洁工完成他的本职工作？还拿刀威胁他？",
+      "卡牌愤怒地攻击着你的大脑。",
+      "收到的道德指责理应少于十次（9/10）",
+      "他的口罩和连像两张薄薄的纸，你轻而易举地就能划开。",
+      "【清洁工】：太……太无礼了，你为什么要阻碍一名清洁工完成他的本职工作？还拿刀威胁他？",
+      "他的嘴巴被你劈成两截，你看见它们的正中央分别含着两颗黑色的珠子。四片唇瓣同时开合，重复卡牌说过的话。",
+      "你犯了一个大错！",
+      "无论如何，道德卫士都不应该率先动粗。",
+      "他的脸和口罩开始愈合，因为他只是一名清洁工，没有理由死亡。",
+      "你的脸开始碎裂，因为你根本不是道德卫士，你以什么身份存在？",
+      "对你来说，扮演这张卡牌就像穿上一双不合脚的鞋，你无法忍受哪怕一分一秒。",
+      "但你终于真正明白了规则的意思。",
+      "这个世界里，表演出纰漏的下场就是死亡。",
+      "如果不是道德卫士，那么你可以是谁呢？",
+      "这里没有你的位置了。",
+      "达成结局：不合脚的鞋"
+    ],
+    choices: [["读档", "loadFromChoice"], ["重新开始", "title", { reset: true }]]
+  },
+  knifeTalk: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "清洁工",
+    text: [
+      "【你】：你怎么知道这是什么东西？",
+      "【清洁工】：我看过很多垃圾袋。",
+      "【你】：我也想学这个能力……百分百透视垃圾袋。",
+      "【清洁工】：你想成为清洁工吗？"
+    ],
+    choices: [["想", "wantCleaner"], ["不想", "notWantCleaner"]]
+  },
+  notWantCleaner: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "清洁工",
+    text: [
+      "【清洁工】：那你学不会的，这是我们的天赋。"
+    ],
+    choices: [["抽出袋子里的菜刀", "knifeAttack"]]
+  },
+  wantCleaner: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "清洁工",
+    text: [
+      "【你】：成为清洁工是我儿时的梦想，总有一天我要实现。",
+      "【清洁工】：可是你注定要当一名作家。"
+    ],
+    choices: [["是的", "writerYes"], ["不，我不是", "notWriter"]]
+  },
+  writerYes: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "清洁工",
+    text: [
+      "【清洁工】：没关系，作家总会有这些奇怪的想法。"
+    ],
+    choices: [["抽出袋子里的菜刀", "knifeAttack"]]
+  },
+  notWriter: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "清洁工",
+    text: [
+      "他看向你。",
+      "不，他一直都在看着你，只是你此刻才意识到这一点。",
+      "【清洁工】：你是谁？"
+    ],
+    choices: [["我是道德卫士", "moralKnight"], ["我是清洁工", "cleanerIdentity"]]
+  },
+  moralKnight: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "清洁工",
+    text: [
+      "【清洁工】：……",
+      "他再没说什么。"
+    ],
+    choices: [["抽出袋子里的菜刀", "knifeAttack"]]
+  },
+  cleanerIdentity: {
+    scene: "结局",
+    clock: "12:26",
+    title: "垃圾",
+    text: [
+      "他看着你，你感觉到他下一秒仿佛要哭出来。",
+      "残忍的、慈悲的眼泪。",
+      "你意识到了一件事。"
+    ],
+    choices: [["继续", "garbageEnding"]]
+  },
+  maskTouch: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "摘口罩",
+    text: [
+      "口罩下面还是一层口罩！",
+      "【你】：……",
+      "【一号卡】：为什么不经过别人的同意就摘人家的口罩？",
+      "卡牌愤怒地攻击着你的大脑。",
+      "收到的道德指责理应少于十次（9/10）",
+      "【清洁工】：你做什么？"
+    ],
+    choices: [["开口", "maskTalk"], ["沉默", "maskSilent"]]
+  },
+  maskTalk: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "摘口罩",
+    text: [
+      "【你】：抱歉，我只是好奇你的长相。",
+      "【清洁工】：我不想当你的写作素材。",
+      "【你】：抱歉……抱歉……",
+      "道德卫士好像暂时接管了你的语言系统。",
+      "【你】：请把垃圾带走吧。"
+    ],
+    choices: [["提交垃圾", "part2End"]]
+  },
+  maskSilent: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "摘口罩",
+    text: [
+      "你不打算回答他。",
+      "【一号卡】：为什么对别人的话视若罔闻？",
+      "收到的道德指责理应少于十次（8/10）"
+    ],
+    choices: [["提交垃圾", "part2End"]]
+  },
+  noContact: {
+    scene: "Part2",
+    clock: "12:26",
+    title: "提交垃圾",
+    text: [
+      "但你不会真的拿起刀砍它，没必要为难基层工作者。",
+      "【一号卡】：有道德的人，值得尊敬。"
+    ],
+    choices: [["提交垃圾", "part2End"]]
+  },
+  part2End: {
+    scene: "Part2",
+    clock: "12:27",
+    title: "走廊",
+    text: [
+      "part3 走廊"
+    ],
+    choices: [["存档", "saveFromChoice"], ["回到房间探索", "explore"]]
   }
 };
 
@@ -538,8 +1044,25 @@ const els = {
   traits: document.querySelector("#traits"),
   roomTransition: document.querySelector("#roomTransition"),
   transitionName: document.querySelector("#transitionName"),
+  saveGame: document.querySelector("#saveGame"),
+  loadGame: document.querySelector("#loadGame"),
+  clearSave: document.querySelector("#clearSave"),
   toast: document.querySelector("#toast")
 };
+
+function defaultFlags() {
+  return {
+    bagOpen: false,
+    clothesOn: false,
+    curtainOpenTried: false,
+    mirrorSat: false,
+    bedRested: false,
+    ignoredCorpse: false,
+    wrotePoem: false,
+    cleanerDirectAvailable: true,
+    garbagePatienceApplied: false
+  };
+}
 
 function resolve(value) {
   return typeof value === "function" ? value() : value;
@@ -574,6 +1097,16 @@ function render() {
     });
     els.choices.appendChild(form);
   } else {
+    if (node.password) {
+      const form = document.createElement("form");
+      form.className = "password-form";
+      form.innerHTML = `<input autocomplete="off" placeholder="输入密码"><button type="submit">确认</button>`;
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        choose("bookcaseOpen");
+      });
+      els.choices.appendChild(form);
+    }
     resolve(node.choices).forEach(([label, target, effect]) => {
       const button = document.createElement("button");
       button.className = "choice";
@@ -590,6 +1123,14 @@ function render() {
 }
 
 function choose(target, effect = {}) {
+  if (target === "saveFromChoice") {
+    saveGame();
+    return;
+  }
+  if (target === "loadFromChoice") {
+    loadGame();
+    return;
+  }
   if (effect.reset) {
     resetGame();
     return;
@@ -601,6 +1142,12 @@ function choose(target, effect = {}) {
   if (effect.patience) changePatience(effect.patience);
   if (effect.flag) state.flags[effect.flag] = true;
   if (effect.explored) markExplored(effect.explored);
+  if (effect.hideDirectOpen) state.flags.cleanerDirectAvailable = false;
+  if (effect.heldTrash !== undefined) state.heldTrash = effect.heldTrash;
+  if (effect.organChoice) state.organChoice = effect.organChoice;
+  if (effect.expressionChoice) state.expressionChoice = effect.expressionChoice;
+  if (effect.bodyChoice) state.bodyChoice = effect.bodyChoice;
+  if (effect.mouthChoice) state.mouthChoice = effect.mouthChoice;
 
   state.node = target;
   render();
@@ -621,7 +1168,114 @@ function explorationChoices() {
     .filter(([, , key]) => !state.explored.includes(key))
     .map(([label, target]) => [label, target]);
 
-  return available.length ? available : [["结束探索", "endingDemo"]];
+  return available.length ? available : [["结束探索", "knock"]];
+}
+
+function cleanerStartChoices() {
+  const choices = [
+    ["查看猫眼", "peephole", { hideDirectOpen: true }],
+    ["“你是谁？”", "cleanerWho", { hideDirectOpen: true }]
+  ];
+  if (state.flags.cleanerDirectAvailable) {
+    choices.push(["直接开门", "directOpen"]);
+  }
+  choices.push(["查看卡牌", "cleanerCard"]);
+  return choices;
+}
+
+function trashChoices() {
+  const choices = [];
+  if (!state.flags.ignoredCorpse && !state.flags.wrotePoem) {
+    choices.push(["尸体", "corpseTrashConfirm"]);
+  }
+  if (state.items.includes("bear")) {
+    choices.push(["白毛熊", "bearTrash"]);
+  }
+  if (state.items.includes("poem")) {
+    choices.push([`${state.name || "主控"}之诗`, "poemTrash", { heldTrash: "poem" }]);
+  }
+  if (state.items.includes("garbageCat")) {
+    choices.push(["垃圾袋猫", "catTrash", { heldTrash: "cat" }]);
+  }
+  choices.push(["自己", "selfTrash"]);
+  choices.push(["你没有垃圾", "directOpen", { heldTrash: "" }]);
+  return choices;
+}
+
+function mouthChoices() {
+  const choices = [["开口。", "submitTrash", { mouthChoice: "talk" }]];
+  if (!["corpse", "bearLoose", "poem"].includes(state.heldTrash)) {
+    choices.push(["无论发生什么，沉默。", "submitTrash", { mouthChoice: "silent" }]);
+  }
+  return choices;
+}
+
+function submitTrashText() {
+  if (state.heldTrash === "poem") {
+    return [`你${expressionAdverb()}地吟唱着${state.name || "主控"}之诗`];
+  }
+  if (state.heldTrash === "corpse" || state.heldTrash === "bearLoose") {
+    return [`你${expressionAdverb()}地邀请它进房间`];
+  }
+  return [`你${expressionAdverb()}地递出了${trashLabel(state.heldTrash)}`];
+}
+
+function submitTrashChoices() {
+  if (!state.heldTrash) return [["继续", "directOpen"]];
+  if (state.bodyChoice === "attack") return [["他怕了，你手上毕竟是把刀。", "knifeAttack"]];
+  if (state.bodyChoice === "mask") return [["靠近它", "maskTouch"]];
+  if (state.heldTrash === "corpse" || state.heldTrash === "bearLoose") return [["继续", "directOpenNoTrash"]];
+  if (state.heldTrash === "self") return [["继续", "garbageEnding"]];
+  if (state.heldTrash === "poem") return [["提交垃圾", "part2End"]];
+  return [["提交垃圾", "part2End"]];
+}
+
+function knifeAfterQuestionText() {
+  if (state.expressionChoice === "calm") {
+    return [
+      "【清洁工】：这把刀……你从哪里拿的？"
+    ];
+  }
+  if (state.expressionChoice === "low") {
+    return [
+      "他低下眉毛，你从他的眼神中读出了一丝失望。",
+      "【清洁工】：给我吧。"
+    ];
+  }
+  return [
+    "【清洁工】：这是垃圾吗？",
+    "你看不见他的表情，却觉得有些瘆人。"
+  ];
+}
+
+function knifeAfterQuestionChoices() {
+  const choices = [];
+  if (state.bodyChoice === "attack") choices.push(["他怕了，你手上毕竟是把刀。", "knifeAttack"]);
+  if (state.mouthChoice !== "silent") choices.push(["他怎么知道袋子里装的什么？", "knifeTalk"]);
+  choices.push(["提交垃圾袋", "part2End"]);
+  return choices;
+}
+
+function expressionAdverb() {
+  const labels = {
+    smile: "微笑",
+    low: "低落",
+    angry: "愤怒",
+    calm: "平静"
+  };
+  return labels[state.expressionChoice] || "";
+}
+
+function trashLabel(id) {
+  const labels = {
+    bear: "白毛熊",
+    cat: "垃圾袋猫",
+    self: "自己",
+    poem: `${state.name || "主控"}之诗`,
+    corpse: "尸体",
+    bearLoose: "白毛熊"
+  };
+  return labels[id] || "黑色垃圾袋";
 }
 
 function markExplored(id) {
@@ -735,7 +1389,7 @@ function updateMap() {
 
 function currentChapter() {
   if (state.node === "title") return "title";
-  if (["explore", "endingDemo"].includes(state.node)) return "explore";
+  if (!["title", "wake", "lampA", "lampALeft", "lampARight", "lampB", "lampC", "ignoreCorpse", "poemCorpse", "investigateCorpse", "bear", "bearPush", "phone", "phoneThrow", "phoneReply", "cardOne"].includes(state.node)) return "explore";
   return "room";
 }
 
@@ -779,6 +1433,57 @@ function toast(message) {
   toast.timer = setTimeout(() => els.toast.classList.remove("is-visible"), 2200);
 }
 
+function saveGame() {
+  const snapshot = {
+    name: state.name,
+    node: state.node,
+    roomPatience: state.roomPatience,
+    collective: state.collective,
+    traits: state.traits,
+    items: state.items,
+    cards: state.cards,
+    achievements: state.achievements,
+    explored: state.explored,
+    heldTrash: state.heldTrash,
+    organChoice: state.organChoice,
+    expressionChoice: state.expressionChoice,
+    bodyChoice: state.bodyChoice,
+    mouthChoice: state.mouthChoice,
+    flags: state.flags
+  };
+  localStorage.setItem("beast-demo-save", JSON.stringify(snapshot));
+  toast("存档完成。");
+}
+
+function loadGame() {
+  const raw = localStorage.getItem("beast-demo-save");
+  if (!raw) {
+    toast("没有存档。");
+    return;
+  }
+  try {
+    const snapshot = JSON.parse(raw);
+    Object.assign(state, snapshot);
+    state.flags = { ...defaultFlags(), ...(snapshot.flags || {}) };
+    state.traits = snapshot.traits || Array(9).fill(0);
+    state.items = snapshot.items || [];
+    state.cards = snapshot.cards || [];
+    state.achievements = snapshot.achievements || [];
+    state.explored = snapshot.explored || [];
+    state.lastEffect = "";
+    state.lastAnimatedNode = "";
+    render();
+    toast("读档完成。");
+  } catch {
+    toast("存档损坏。");
+  }
+}
+
+function clearSave() {
+  localStorage.removeItem("beast-demo-save");
+  toast("存档已删除。");
+}
+
 function resetGame() {
   state.name = "";
   state.node = "title";
@@ -789,15 +1494,12 @@ function resetGame() {
   state.cards = [];
   state.achievements = [];
   state.explored = [];
-  state.flags = {
-    bagOpen: false,
-    clothesOn: false,
-    curtainOpenTried: false,
-    mirrorSat: false,
-    bedRested: false,
-    ignoredCorpse: false,
-    wrotePoem: false
-  };
+  state.heldTrash = "";
+  state.organChoice = "";
+  state.expressionChoice = "";
+  state.bodyChoice = "";
+  state.mouthChoice = "";
+  state.flags = defaultFlags();
   state.lastEffect = "";
   state.lastAnimatedNode = "";
   render();
@@ -810,6 +1512,10 @@ document.querySelectorAll(".tab").forEach(button => {
     document.querySelector(`#${button.dataset.tab}`).classList.add("is-active");
   });
 });
+
+els.saveGame.addEventListener("click", saveGame);
+els.loadGame.addEventListener("click", loadGame);
+els.clearSave.addEventListener("click", clearSave);
 
 window.addEventListener("beforeunload", event => {
   if (["phone", "phoneThrow", "phoneReply"].includes(state.node)) {

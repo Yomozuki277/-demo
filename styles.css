@@ -160,7 +160,9 @@ h1 {
 
 .choice,
 .name-form button,
-.tab {
+.password-form button,
+.tab,
+.save-action {
   cursor: pointer;
   color: var(--paper);
   background: #0d0303;
@@ -187,19 +189,22 @@ h1 {
 
 .choice:hover,
 .choice:focus-visible,
-.tab:hover {
+.tab:hover,
+.save-action:hover {
   transform: translateY(-1px);
   border-color: var(--gold);
   background: #210706;
 }
 
-.name-form {
+.name-form,
+.password-form {
   display: flex;
   gap: 10px;
   margin-top: 22px;
 }
 
-.name-form input {
+.name-form input,
+.password-form input {
   min-width: 0;
   flex: 1;
   padding: 12px 14px;
@@ -208,7 +213,8 @@ h1 {
   border: 2px solid rgba(100, 5, 4, .55);
 }
 
-.name-form button {
+.name-form button,
+.password-form button {
   padding: 0 18px;
 }
 
@@ -354,6 +360,17 @@ h1 {
   gap: 7px;
 }
 
+.save-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.save-action {
+  padding: 9px 6px;
+  border-radius: 4px;
+}
+
 .tab {
   padding: 9px 6px;
   border-radius: 4px;
@@ -467,7 +484,8 @@ h1 {
   place-items: center;
   color: var(--paper);
   background:
-    radial-gradient(circle at 50% 48%, rgba(83, 10, 8, .28), transparent 18%),
+    radial-gradient(circle at 50% 48%, rgba(232, 196, 110, .18), transparent 38%),
+    linear-gradient(rgba(0, 0, 0, .92), rgba(0, 0, 0, .86)),
     #020101;
   opacity: 0;
   pointer-events: none;
@@ -529,10 +547,10 @@ h1 {
 }
 
 @keyframes roomFade {
-  0% { opacity: 0; clip-path: circle(0 at 50% 50%); }
-  18% { opacity: 1; clip-path: circle(150% at 50% 50%); }
-  54% { opacity: 1; }
-  100% { opacity: 0; clip-path: circle(10% at 50% 50%); }
+  0% { opacity: 1; filter: brightness(.12); }
+  42% { opacity: 1; filter: brightness(.45); }
+  72% { opacity: .72; filter: brightness(.9); }
+  100% { opacity: 0; filter: brightness(1.25); }
 }
 
 @keyframes panelWake {
