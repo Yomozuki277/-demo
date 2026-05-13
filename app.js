@@ -596,7 +596,7 @@ const nodes = {
       "如果对非垃圾的定义是“有用的东西”，那么它对你来说当然是垃圾。",
       "但你根本没法移动这个东西。或许这正好是一个机会，让门外的人来帮你清理房间里的异物。"
     ],
-    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+    choices: [["开门", "openDoor"]]
   },
   bearTrash: {
     scene: "Part2",
@@ -621,7 +621,7 @@ const nodes = {
       "它是被力驯服的死物，它从未开口。",
       "打包好了。"
     ],
-    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+    choices: [["开门", "openDoor"]]
   },
   bearNoPack: {
     scene: "Part2",
@@ -630,7 +630,7 @@ const nodes = {
     text: [
       "没有合适的垃圾袋，这是清洁工需要处理的问题。"
     ],
-    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+    choices: [["开门", "openDoor"]]
   },
   poemTrash: {
     scene: "Part2",
@@ -640,7 +640,7 @@ const nodes = {
       "一张废纸而已，不用装进垃圾袋。",
       "你可以直接念给对方听，将这份精神排泄物灌到他的耳朵里。"
     ],
-    choices: [["查看猫眼", "peephole", { heldTrash: "poem" }], ["开门", "openDoor", { heldTrash: "poem" }]]
+    choices: [["开门", "openDoor", { heldTrash: "poem" }]]
   },
   catTrash: {
     scene: "Part2",
@@ -650,7 +650,7 @@ const nodes = {
       "如果你愿意这么做的话，它当然和任何物品没有区别。",
       "垃圾袋猫从不知名的空间再次跳出来，轻盈地钻进黑色塑料袋——几分钟前，这只袋子还属于它的内部，你只是将它们同时翻了个面。"
     ],
-    choices: [["查看猫眼", "peephole", { heldTrash: "cat" }], ["开门", "openDoor", { heldTrash: "cat" }]]
+    choices: [["开门", "openDoor", { heldTrash: "cat" }]]
   },
   selfTrash: {
     scene: "Part2",
@@ -671,7 +671,7 @@ const nodes = {
     text: [
       "如果你进去，谁来把垃圾袋递给清洁工呢？你完全可以亲自打开门，让清洁工把你打包起来。"
     ],
-    choices: [["查看猫眼", "peephole"], ["开门", "openDoor"]]
+    choices: [["开门", "openDoor"]]
   },
   selfTrashInside: {
     scene: "结局",
