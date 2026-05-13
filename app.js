@@ -51,6 +51,10 @@ const state = {
   flags: defaultFlags()
 };
 
+const SAVE_KEY = "beast-demo-saves";
+const LEGACY_SAVE_KEY = "beast-demo-save";
+const MAX_SAVE_SLOTS = 6;
+
 const nodes = {
   title: {
     scene: "序章",
@@ -287,7 +291,7 @@ const nodes = {
       state.flags.clothesOn = true;
       addTraits([7]);
     },
-    choices: [["脱下", "explore", { explored: "closet" }], ["继续穿着", "explore", { explored: "closet" }]]
+    choices: [["脱下", "explore", { explored: "closet", flagOff: "clothesOn" }], ["继续穿着", "explore", { explored: "closet", flag: "clothesOn" }]]
   },
   curtain: {
     scene: "房间探索",
@@ -336,11 +340,7 @@ const nodes = {
       "不知道什么人把两只拖鞋踢了进去。",
       "一坨黑乎乎的垃圾袋趴在床底。"
     ],
-    choices: [
-      ["穿上拖鞋", "underBedSlipper", { item: "slipper" }],
-      ["趴？", "garbageCat"],
-      ["离开", "explore", { explored: "underBed" }]
-    ]
+    choices: () => underBedChoices()
   },
   underBedSlipper: {
     scene: "房间探索",
@@ -383,7 +383,7 @@ const nodes = {
     title: "密码锁",
     text: () => ["（请输入密码）"],
     password: true,
-    choices: [["打开书柜", "bookcaseOpen"], ["离开", "explore", { explored: "bookcase" }]]
+    choices: [["离开", "explore", { explored: "bookcase" }]]
   },
   bookcaseForce: {
     scene: "房间探索",
@@ -743,14 +743,18 @@ const nodes = {
     scene: "Part2",
     clock: "12:24",
     title: "开门",
-    text: [
+    text: [],
+    sensePrompt: [
       "你要调用什么器官观察面前的人或物？"
     ],
-    choices: [
-      ["心脏", "organHeart", { traits: [2, 3, 4], organChoice: "heart" }],
-      ["大脑", "organBrain", { traits: [5, 6, 7], organChoice: "brain" }],
-      ["腹部", "organBelly", { traits: [8, 9, 1], organChoice: "belly" }]
-    ]
+    effect: () => {
+      state.organChoice = "";
+      state.expressionChoice = "";
+      state.bodyChoice = "";
+      state.mouthChoice = "";
+    },
+    panel: "senseExpression",
+    choices: []
   },
   organHeart: {
     scene: "Part2",
@@ -1041,6 +1045,7 @@ const els = {
   items: document.querySelector("#items"),
   cards: document.querySelector("#cards"),
   achievements: document.querySelector("#achievements"),
+  wearing: document.querySelector("#wearing"),
   traits: document.querySelector("#traits"),
   roomTransition: document.querySelector("#roomTransition"),
   transitionName: document.querySelector("#transitionName"),
@@ -1055,6 +1060,7 @@ function defaultFlags() {
   return {
     bagOpen: false,
     clothesOn: false,
+    slipperOn: false,
     curtainOpenTried: false,
     mirrorSat: false,
     bedRested: false,
@@ -1112,6 +1118,8 @@ function render() {
       enterRoom();
     });
     els.choices.appendChild(form);
+  } else if (node.panel === "senseExpression") {
+    renderSenseExpressionPanel();
   } else {
     if (node.password) {
       const form = document.createElement("form");
@@ -1152,11 +1160,19 @@ function choose(target, effect = {}) {
     return;
   }
 
+  applyEffect(effect);
+
+  state.node = target;
+  render();
+}
+
+function applyEffect(effect = {}) {
   if (effect.traits) addTraits(effect.traits);
   if (effect.item) addItem(effect.item);
   if (effect.collective) changeCollective(effect.collective);
   if (effect.patience) changePatience(effect.patience);
   if (effect.flag) state.flags[effect.flag] = true;
+  if (effect.flagOff) state.flags[effect.flagOff] = false;
   if (effect.explored) markExplored(effect.explored);
   if (effect.hideDirectOpen) state.flags.cleanerDirectAvailable = false;
   if (effect.heldTrash !== undefined) state.heldTrash = effect.heldTrash;
@@ -1164,9 +1180,121 @@ function choose(target, effect = {}) {
   if (effect.expressionChoice) state.expressionChoice = effect.expressionChoice;
   if (effect.bodyChoice) state.bodyChoice = effect.bodyChoice;
   if (effect.mouthChoice) state.mouthChoice = effect.mouthChoice;
+}
 
-  state.node = target;
-  render();
+function renderSenseExpressionPanel() {
+  const panel = document.createElement("div");
+  panel.className = "sense-modal";
+
+  const organSection = createSenseSection({
+    title: "观察器官",
+    prompt: resolve(nodes.openDoor.sensePrompt),
+    selected: state.organChoice,
+    options: senseOrganOptions(),
+    onSelect: value => {
+      state.organChoice = value;
+      render();
+    }
+  });
+
+  const expressionSection = createSenseSection({
+    title: "表情",
+    prompt: resolve(nodes.expressionSelect.text),
+    selected: state.expressionChoice,
+    options: senseExpressionOptions(),
+    onSelect: value => {
+      state.expressionChoice = value;
+      render();
+    }
+  });
+
+  panel.append(organSection, expressionSection);
+
+  if (state.organChoice && state.expressionChoice) {
+    const footer = document.createElement("div");
+    footer.className = "sense-footer";
+    const button = document.createElement("button");
+    button.className = "choice sense-continue";
+    button.type = "button";
+    button.textContent = "继续";
+    button.addEventListener("click", () => choose("bodySelect", senseSelectionEffect()));
+    footer.appendChild(button);
+    panel.appendChild(footer);
+  }
+
+  els.choices.appendChild(panel);
+}
+
+function createSenseSection({ title, prompt, selected, options, onSelect }) {
+  const section = document.createElement("section");
+  section.className = "sense-section";
+  section.innerHTML = `<h2>${title}</h2>`;
+  const promptBlock = document.createElement("div");
+  promptBlock.className = "sense-prompt";
+  promptBlock.innerHTML = prompt.map(renderStoryLine).join("");
+  section.appendChild(promptBlock);
+
+  const buttons = document.createElement("div");
+  buttons.className = "sense-buttons";
+  options.forEach(option => {
+    const button = document.createElement("button");
+    button.className = `sense-pick${selected === option.value ? " is-selected" : ""}`;
+    button.type = "button";
+    button.textContent = option.label;
+    button.addEventListener("click", () => onSelect(option.value));
+    buttons.appendChild(button);
+  });
+  section.appendChild(buttons);
+
+  const result = document.createElement("div");
+  result.className = `sense-result${selected ? " is-visible" : ""}`;
+  const selectedOption = options.find(option => option.value === selected);
+  if (selectedOption) {
+    const text = resolve(nodes[selectedOption.resultNode].text);
+    result.innerHTML = text.map(renderStoryLine).join("");
+  }
+  section.appendChild(result);
+
+  return section;
+}
+
+function senseOrganOptions() {
+  return [
+    { label: nodes.organHeart.title, value: "heart", resultNode: "organHeart" },
+    { label: nodes.organBrain.title, value: "brain", resultNode: "organBrain" },
+    { label: nodes.organBelly.title, value: "belly", resultNode: "organBelly" }
+  ];
+}
+
+function senseExpressionOptions() {
+  return [
+    { label: nodes.expressionSmile.title, value: "smile", resultNode: "expressionSmile" },
+    { label: nodes.expressionLow.title, value: "low", resultNode: "expressionLow" },
+    { label: nodes.expressionAngry.title, value: "angry", resultNode: "expressionAngry" },
+    { label: nodes.expressionCalm.title, value: "calm", resultNode: "expressionCalm" }
+  ];
+}
+
+function senseSelectionEffect() {
+  const organEffects = {
+    heart: { traits: [2, 3, 4], organChoice: "heart" },
+    brain: { traits: [5, 6, 7], organChoice: "brain" },
+    belly: { traits: [8, 9, 1], organChoice: "belly", item: "slipper" }
+  };
+  return {
+    ...(organEffects[state.organChoice] || {}),
+    expressionChoice: state.expressionChoice
+  };
+}
+
+function underBedChoices() {
+  const choices = [];
+  if (!state.flags.slipperOn) {
+    choices.push(["穿上拖鞋", "underBedSlipper", { item: "slipper", flag: "slipperOn" }]);
+  }
+  choices.push(["趴？", "garbageCat"]);
+  choices.push(["离开", "explore", { explored: "underBed" }]);
+  return choices;
 }
 
 function explorationChoices() {
@@ -1370,6 +1498,16 @@ function updateHud() {
   } else {
     els.items.innerHTML = `<p class="empty">道具栏尚未开启。找到垃圾袋猫后，已触发的物件会被收纳进来。</p>`;
   }
+  els.wearing.innerHTML = `
+    <div class="wear-entry${state.flags.clothesOn ? " is-on" : ""}">
+      <span>衣服</span>
+      <b>${state.flags.clothesOn ? "已穿" : "未穿"}</b>
+    </div>
+    <div class="wear-entry${state.flags.slipperOn ? " is-on" : ""}">
+      <span>鞋</span>
+      <b>${state.flags.slipperOn ? "拖鞋" : "赤足"}</b>
+    </div>
+  `;
   renderList(els.cards, state.cards, cardBook, "还没有卡牌。手机会告诉你第一张面具是谁。");
   renderList(els.achievements, state.achievements, achievementBook, "成就不会预告，只会在剧本触发后出现。");
 
@@ -1477,7 +1615,19 @@ function popupVariant(message) {
 }
 
 function saveGame() {
-  const snapshot = {
+  openSaveDialog("save");
+}
+
+function loadGame() {
+  openSaveDialog("load");
+}
+
+function clearSave() {
+  openSaveDialog("delete");
+}
+
+function createSnapshot() {
+  return {
     name: state.name,
     node: state.node,
     roomPatience: state.roomPatience,
@@ -1494,37 +1644,183 @@ function saveGame() {
     mouthChoice: state.mouthChoice,
     flags: state.flags
   };
-  localStorage.setItem("beast-demo-save", JSON.stringify(snapshot));
-  toast("存档完成。");
 }
 
-function loadGame() {
-  const raw = localStorage.getItem("beast-demo-save");
-  if (!raw) {
-    toast("没有存档。");
+function readSaveSlots() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) {
+    try {
+      const slots = JSON.parse(raw);
+      if (Array.isArray(slots)) return slots.filter(slot => slot && slot.snapshot);
+    } catch {
+      return [];
+    }
+  }
+
+  const legacy = localStorage.getItem(LEGACY_SAVE_KEY);
+  if (!legacy) return [];
+  try {
+    const snapshot = JSON.parse(legacy);
+    const migrated = [{
+      id: String(Date.now()),
+      note: "旧存档",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      snapshot
+    }];
+    writeSaveSlots(migrated);
+    return migrated;
+  } catch {
+    return [];
+  }
+}
+
+function writeSaveSlots(slots) {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(slots));
+}
+
+function applySnapshot(snapshot) {
+  Object.assign(state, snapshot);
+  state.flags = { ...defaultFlags(), ...(snapshot.flags || {}) };
+  state.traits = snapshot.traits || Array(9).fill(0);
+  state.items = snapshot.items || [];
+  state.cards = snapshot.cards || [];
+  state.achievements = snapshot.achievements || [];
+  state.explored = snapshot.explored || [];
+  state.lastEffect = "";
+  state.lastAnimatedNode = "";
+  render();
+}
+
+function formatSaveTime(value) {
+  return new Date(value).toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function defaultSaveNote() {
+  const chapter = nodes[state.node]?.scene || "未知";
+  const title = nodes[state.node]?.title || "无题";
+  return `${chapter} · ${title}`;
+}
+
+function openSaveDialog(mode) {
+  const existing = document.querySelector(".save-dialog-backdrop");
+  if (existing) existing.remove();
+
+  const slots = readSaveSlots();
+  const backdrop = document.createElement("div");
+  backdrop.className = "save-dialog-backdrop";
+  backdrop.innerHTML = `
+    <div class="save-dialog" role="dialog" aria-modal="true" aria-label="存读档">
+      <div class="save-dialog-head">
+        <strong>${mode === "save" ? "存档" : mode === "load" ? "读档" : "删除存档"}</strong>
+        <button class="save-dialog-close" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="save-dialog-body"></div>
+    </div>
+  `;
+
+  const body = backdrop.querySelector(".save-dialog-body");
+  backdrop.querySelector(".save-dialog-close").addEventListener("click", () => backdrop.remove());
+  backdrop.addEventListener("click", event => {
+    if (event.target === backdrop) backdrop.remove();
+  });
+
+  if (mode === "save") {
+    renderSaveCreate(body, slots, backdrop);
+  } else {
+    renderSaveList(body, slots, backdrop, mode);
+  }
+
+  document.body.appendChild(backdrop);
+}
+
+function renderSaveCreate(body, slots, backdrop) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "save-create";
+  wrapper.innerHTML = `
+    <label class="save-note-label">
+      <span>备注</span>
+      <input maxlength="32">
+    </label>
+    <button class="save-action save-dialog-primary" type="button">保存为新存档</button>
+  `;
+  const input = wrapper.querySelector("input");
+  input.value = defaultSaveNote();
+  wrapper.querySelector("button").addEventListener("click", () => {
+    const next = [{
+      id: String(Date.now()),
+      note: input.value.trim() || defaultSaveNote(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      snapshot: createSnapshot()
+    }, ...slots].slice(0, MAX_SAVE_SLOTS);
+    writeSaveSlots(next);
+    backdrop.remove();
+    toast("存档完成。");
+  });
+  body.appendChild(wrapper);
+
+  if (slots.length) {
+    const hint = document.createElement("p");
+    hint.className = "save-dialog-hint";
+    hint.textContent = "也可以覆盖已有存档：";
+    body.appendChild(hint);
+    renderSaveList(body, slots, backdrop, "overwrite", input);
+  }
+}
+
+function renderSaveList(body, slots, backdrop, mode, noteInput) {
+  if (!slots.length) {
+    body.innerHTML += `<p class="empty">没有存档。</p>`;
     return;
   }
-  try {
-    const snapshot = JSON.parse(raw);
-    Object.assign(state, snapshot);
-    state.flags = { ...defaultFlags(), ...(snapshot.flags || {}) };
-    state.traits = snapshot.traits || Array(9).fill(0);
-    state.items = snapshot.items || [];
-    state.cards = snapshot.cards || [];
-    state.achievements = snapshot.achievements || [];
-    state.explored = snapshot.explored || [];
-    state.lastEffect = "";
-    state.lastAnimatedNode = "";
-    render();
-    toast("读档完成。");
-  } catch {
-    toast("存档损坏。");
-  }
-}
 
-function clearSave() {
-  localStorage.removeItem("beast-demo-save");
-  toast("存档已删除。");
+  const list = document.createElement("div");
+  list.className = "save-slot-list";
+  slots.forEach(slot => {
+    const item = document.createElement("article");
+    item.className = "save-slot";
+    const snapshot = slot.snapshot || {};
+    item.innerHTML = `
+      <div>
+        <strong>${slot.note || "未命名存档"}</strong>
+        <span>${formatSaveTime(slot.updatedAt || slot.createdAt)} · ${snapshot.name || "主控"} · ${nodes[snapshot.node]?.title || snapshot.node || "未知"}</span>
+      </div>
+      <button class="save-action" type="button">${mode === "delete" ? "删除" : mode === "overwrite" ? "覆盖" : "进入"}</button>
+    `;
+    item.querySelector("button").addEventListener("click", () => {
+      if (mode === "delete") {
+        writeSaveSlots(slots.filter(itemSlot => itemSlot.id !== slot.id));
+        backdrop.remove();
+        toast("存档已删除。");
+        return;
+      }
+      if (mode === "overwrite") {
+        const note = noteInput?.value.trim() || slot.note || defaultSaveNote();
+        writeSaveSlots(slots.map(itemSlot => itemSlot.id === slot.id
+          ? { ...itemSlot, note, updatedAt: Date.now(), snapshot: createSnapshot() }
+          : itemSlot
+        ));
+        backdrop.remove();
+        toast("存档完成。");
+        return;
+      }
+      try {
+        applySnapshot(slot.snapshot);
+        backdrop.remove();
+        toast("读档完成。");
+      } catch {
+        toast("存档损坏。");
+      }
+    });
+    list.appendChild(item);
+  });
+  body.appendChild(list);
 }
 
 function resetGame() {
