@@ -1044,6 +1044,7 @@ const els = {
   traits: document.querySelector("#traits"),
   roomTransition: document.querySelector("#roomTransition"),
   transitionName: document.querySelector("#transitionName"),
+  popupStack: document.querySelector("#popupStack"),
   saveGame: document.querySelector("#saveGame"),
   loadGame: document.querySelector("#loadGame"),
   clearSave: document.querySelector("#clearSave"),
@@ -1068,6 +1069,21 @@ function resolve(value) {
   return typeof value === "function" ? value() : value;
 }
 
+function renderStoryLine(line) {
+  const classes = [];
+  if (line.includes("redline") || line.includes("新信息") || line.includes("1017")) classes.push("is-alert");
+  if (line.startsWith("【")) classes.push("is-dialogue");
+  if (line.startsWith("（") || line.startsWith("【【") || line.startsWith("[")) classes.push("is-system");
+  return `<p class="${classes.join(" ")}">${enhanceLine(line)}</p>`;
+}
+
+function enhanceLine(line) {
+  return line
+    .replace(/【([^】]+)】：/g, "<span class='speaker'>【$1】：</span>")
+    .replace(/^(1017\d{4}：)/, "<span class='clockline'>$1</span>")
+    .replace(/^(【【[^】]+】】)/, "<span class='systemline'>$1</span>");
+}
+
 function render() {
   const node = nodes[state.node];
   if (node.effect && state.lastEffect !== state.node) {
@@ -1079,7 +1095,7 @@ function render() {
   els.sceneLabel.textContent = node.scene;
   els.clockLabel.textContent = node.clock;
   els.playerName.textContent = state.name || "未命名";
-  els.story.innerHTML = resolve(node.text).map(line => `<p>${line}</p>`).join("");
+  els.story.innerHTML = resolve(node.text).map(renderStoryLine).join("");
   els.exploredHint.textContent = state.node === "explore" && state.explored.length
     ? `已探索：${state.explored.map(exploredLabel).join("、")}`
     : "";
@@ -1431,6 +1447,33 @@ function toast(message) {
   els.toast.classList.add("is-visible");
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => els.toast.classList.remove("is-visible"), 2200);
+
+  if (!els.popupStack) return;
+  const popup = document.createElement("div");
+  popup.className = `popup-card ${popupVariant(message)}`;
+  popup.innerHTML = `<strong>${popupTitle(message)}</strong><span>${message}</span>`;
+  els.popupStack.prepend(popup);
+  setTimeout(() => popup.remove(), 3300);
+  while (els.popupStack.children.length > 4) {
+    els.popupStack.lastElementChild.remove();
+  }
+}
+
+function popupTitle(message) {
+  if (message.startsWith("获得道具")) return "道具入袋";
+  if (message.startsWith("获得卡牌")) return "卡牌苏醒";
+  if (message.startsWith("达成成就")) return "成就铭刻";
+  if (message.includes("存档") || message.includes("读档")) return "档案回声";
+  if (message.includes("不满意") || message.includes("损坏")) return "异动";
+  return "提示";
+}
+
+function popupVariant(message) {
+  if (message.startsWith("获得卡牌")) return "is-card";
+  if (message.startsWith("达成成就")) return "is-achievement";
+  if (message.includes("存档") || message.includes("读档")) return "is-save";
+  if (message.includes("不满意") || message.includes("损坏")) return "is-warning";
+  return "";
 }
 
 function saveGame() {
